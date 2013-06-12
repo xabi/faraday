@@ -1,16 +1,16 @@
 (ns taoensso.tundra
-  "Semi-automatic Carmine-backed caching layer for Faraday: marries the best
-  of Redis (read+write performance, structured data types, low cost) with the
-  best of DynamoDB (scalability, reliability, big data storage). And all with
-  a dead-simple, high-performance API.
+  "Alpha - subject to change (hide the kittens!).
+  Semi-automatic Carmine-backed caching layer for Faraday: marries the best
+  of Redis (simplicity, read+write performance, structured data types, low cost)
+  with the best of DynamoDB (scalability, reliability, big data storage). All
+  with a secure, dead-simple, high-performance API.
 
   It's like the magix.
 
   Requires Redis 2.6.0+, Carmine v1.12.0+.
-  Alpha - subject to change (hide the kittens!).
 
-   Redis keys:
-     * carmine:tundra:<worker>:touched -> set, dirty keys."
+  Redis keys:
+    * carmine:tundra:<worker>:touched -> set, dirty keys."
   {:author "Peter Taoussanis"}
   (:refer-clojure :exclude [ensure])
   (:require [taoensso.faraday       :as far]
@@ -21,24 +21,28 @@
             [taoensso.nippy.crypto  :as crypto]
             [taoensso.timbre        :as timbre]))
 
-;; TODO Roughest working prototype, ASAP.
+;;;; TODO
+;; * Roughest working prototype, ASAP.
+;; * Lots 'o tests.
+;; * Finish up README.
 
-(def ttable :faraday.tundra.cache)
+(def ttable :faraday.tundra.data-store)
 
 (defn ensure-table
-  "Creates the Faraday caching table iff it doesn't already exist."
-  [creds & [throughput]]
+  "Creates the Faraday table iff it doesn't already exist."
+  [creds & [{:keys [throughput block?]}]]
   (far/ensure-table creds
     {:name         ttable
-     :throughput   (or throughput {:read 1 :write 1})
+     :throughput   throughput
      :hash-keydef  {:name :worker    :type :s}
-     :range-keydef {:name :redis-key :type :s}}))
+     :range-keydef {:name :redis-key :type :s}
+     :block?       block?}))
 
 (def ^:private tkey (memoize (partial car/kname "carmine" "tundra")))
-;; TODO Add opts for compression+crypto
-(defn- opts [] {:keys ['worker 'cache-ttl-ms]
+(defn- opts [] {:keys ['worker 'cache-ttl-ms 'compress? 'password]
                 :or   {'worker :default
-                       'cache-ttl-ms (* 1000 60 60 24 28)}
+                       'cache-ttl-ms (* 1000 60 60 24 28)
+                       'compress? true}
                 :as   'opts})
 
 (defn- assert-args [keys #=(opts)]
@@ -93,9 +97,7 @@
                                        :redis-key missing-ks}
                             :attrs [:redis-key :data]}})
                  (ttable) ; [{:worker _ :redis-key _} ...]
-                 ;; TODO Automate this structuring via Faraday opt?
-                 (reduce (fn [m {:keys [redis-key data]}]
-                           (assoc m redis-key data)) {}))
+                 (far/items-by-attrs :redis-key))
 
             ;; Restore what we can even if some fetches failed
             restore-replies ; {<redis-key> <restore-reply> ...}
@@ -124,7 +126,7 @@
 
 (comment
   (wc (car/del "k1" "k2" "k3" "k4"))
-  (far/put-item mc ttable {:worker "default" :redis-key "k3" :data "foo!"})
+  (far/put-item mc ttable {:worker "default" :redis-key "k3" :data "malformed-RDF"})
   (wc (ensure mc ["k1" "k4" "k3" "k2"])))
 
 (defn touch
@@ -140,15 +142,41 @@
   (assert-args keys opts)
   (let [ks (distinct ks)]
 
+    ;; TODO Not too much to do here,
+    ;; 1. Set pexpire on all the keys.
+    ;; 2. Add all the keys to the appropriate 'dirty' set.
+    ;; 3. Throw an exception if any of the `pexpires` failed (i.e. keys didn't
+    ;;    exist)?
+
+    ;; TODO What if we touch after expiry but before ensuring?
+
     ))
 
 (comment (touch))
+
+;; Do everything possible to keep this worker from dying. And scream bloody
+;; murder if it does die.
 
 ;; (defprotocol ITundraWorker
 ;;   (stop  [this])
 ;;   (start [this]))
 
 ;; (cutils/defonce* ^:private workers (atom {}))
+
+;; TODO Make sure to add some protection nil-local, nnil-foreign keys.
+;; TODO What about locally (& intentionally) _deleted_ keys?
+;;      We'll need a way to: a) Delete corresponding foreign key.
+;;                           b) Backup (original) corresponding foreign key in
+;;                              the local deletion was an error.
+;; TODO And what about `ensure`? How shall it respond to the 'fetching' of an
+;;      intentionally deleted key? Will we need/want a tombstone mechanism?
+
+;; TODO STEP #1 will be to experiment with RDF deleted-key behavior:
+
+(comment
+  (wc (car/dump "non-existant")) ; nil
+
+  )
 
 ;; (defn reset-worker ""
 ;;   [connection-pool connection-spec &

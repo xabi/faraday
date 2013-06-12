@@ -15,7 +15,8 @@ Faraday was adapted from James Reaves' own [Rotary client](https://github.com/we
 ## What's in the box™?
   * Small, simple, API: **complete coverage of DynamoDBv2 features**.
   * **Great performance** (zero overhead to the official Java SDK).
-  * Full **support for Clojure's rich data types** using [Nippy](https://github.com/ptaoussanis/nippy).
+  * Uses [Nippy](https://github.com/ptaoussanis/nippy) to **support Clojure's rich data types** and **high-strength encryption**.
+  * Includes **Tundra**, a beautiful [Carmine](https://github.com/ptaoussanis/carmine)-backed caching layer for Faraday.
 
 It's still early days. There's probably rough edges, but most of them should be relatively superficial and will be ironed out as the lib sees Real-World-Use™. The goal is to head toward something very much production ready ASAP. **Pull requests, bug reports, and/or suggestions are very, very welcome**!
 
@@ -94,6 +95,39 @@ Most of this stuff is controlled through optional arguments and is pretty easy t
 **Querying**: `query`, `scan`, `scan-parallel`.
 
 You can also check out the [official AWS DynamoDB documentation](http://aws.amazon.com/documentation/dynamodb/) though there's a lot of irrelevant Java-land complexity you won't need to deal with with Farady. The most useful doc is probably on the [DynamoDB data model](http://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DataModel.html).
+
+### Tundra (work in progress)
+
+DynamoDB is great. [Redis](http://www.redis.io/) is great. Together they're _amazing_. Tundra is a **semi-automatic [Carmine](https://github.com/ptaoussanis/carmine)-backed caching layer for Faraday** that marries the best of Redis **(simplicity, read+write performance, structured data types, low cost)** with the best of DynamoDB **(scalability, reliability, big data storage)**. All with a secure, dead-simple, high-performance API.
+
+But this isn't your grandma's caching layer. Actually, it'd probably be more accurate to describe Tundra as a **Faraday-backed storage layer for Carmine**. Tundra allows you to live and work in Redis, with all Redis' usual API goodness and performance guarantees. But it eliminates one of Redis' biggest limitations: its hard dependence on memory capacity.
+
+How? By doing three simple things:
+  1. Tundra (semi-)automatically **snapshots your Redis data out to DynamoDB** (encryption supported). 
+  2. Tundra **prunes cold data from Redis**, freeing memory.
+  3. If requested again, Tundra (semi-)automatically **restores pruned data to Redis from DynamoDB**.
+
+#### Getting started with Tundra
+
+###### These docs assume familiarity with Carmine
+
+The API couldn't be simpler - there's a little once-off setup, and then only 2 fns you'll be using to make the magic happen:
+
+```clojure
+(:require [taoensso.carmine :as car]
+          [taoensso.tundra  :as tundra]) ; Add to ns
+
+;;; Setup Carmine connections
+(def pool         (car/make-conn-pool))
+(def spec-server1 (car/make-conn-spec))
+(defmacro wcar [& body] `(car/with-conn pool spec-server1 ~@body))
+
+(tundra/ensure-table my-creds {:read 1 :write 1}) ; Create the Tundra data store
+
+;; TODO Setup worker
+```
+
+TODO Continue
 
 ## Performance (TODO)
 
