@@ -1,53 +1,110 @@
-**[API docs](http://ptaoussanis.github.io/faraday/)** | **[CHANGELOG](https://github.com/ptaoussanis/faraday/blob/master/CHANGELOG.md)** | [contact & contributing](#contact--contributing) | [other Clojure libs](https://www.taoensso.com/clojure-libraries) | [Twitter](https://twitter.com/#!/ptaoussanis) | current [semantic](http://semver.org/) version:
+<a href="https://www.taoensso.com" title="More stuff by @ptaoussanis at www.taoensso.com">
+<img src="https://www.taoensso.com/taoensso-open-source.png" alt="Taoensso open-source" width="400"/></a>
+
+**[CHANGELOG]** | [API] | current [Break Version]:
 
 ```clojure
-[com.taoensso/faraday "1.0.1"] ; Stable
+[com.taoensso/faraday "1.9.0"] ; BREAKING, see CHANGELOG for details
 ```
 
-# Faraday, a Clojure DynamoDB client
+> Please consider helping to [support my continued open-source Clojure/Script work]? 
+> 
+> Even small contributions can add up + make a big difference to help sustain my time writing, maintaining, and supporting Faraday and other Clojure/Script libraries. **Thank you!**
+>
+> \- Peter Taoussanis
 
-[DynamoDB](http://aws.amazon.com/dynamodb/) is *terrific* and makes a great companion for Clojure web apps that need a **simple, highly-reliable way to scale with predictable performance and without the usual headaches**. Seriously, it _rocks_.
+# Faraday
 
-Concerned about the costs? They've been [getting](http://goo.gl/qJP5d) [better](http://goo.gl/hCVxY) recently and are actually pretty decent as of May 2013.
+## Clojure DynamoDB client
 
-Faraday was adapted from James Reaves' [Rotary client](https://github.com/weavejester/rotary). Why adapt? Freedom to experiment rapidly+aggresively without being particularly concerned about backwards compatibility.
+[DynamoDB] is *awesome* and makes a great companion for Clojure web apps that need a **simple, reliable way to scale with predictable performance and without the usual headaches**.
 
-## What's in the box™?
-  * Small, simple, API: **complete coverage of DynamoDBv2 features**.
-  * **Great performance** (zero overhead to the official Java SDK).
-  * Uses [Nippy](https://github.com/ptaoussanis/nippy) to **support Clojure's rich data types** and **high-strength encryption**.
+Faraday was originally adapted from the [Rotary client] by James Reeves.
+
+## Library status
+
+I'm not currently using DDB or Faraday myself but will make a best effort to continue maintaining the library as I can.
+
+The bulk of recent development work has been thanks to the generosity of Faraday's [contributors]! 
+
+PRs for fixes and/or new features **very welcome**!
+
+\- [Peter Taoussanis]
+
+## Features
+ * Small, simple, API: **complete coverage of DynamoDBv2 features**
+ * **Great performance** (zero overhead to the official Java SDK)
+ * Uses [Nippy] for full support of **Clojure's rich data types**
+
+## 3rd-party stuff
+
+Link                     | Description
+------------------------ | -----------------------------------------------------
+[@mixradio/faraday-atom] | Atom implementation for Faraday
+[@ricardojmendez/ddb-tutorial] | **Tutorial**: Clojure and DDB with Faraday
+Your link here?          | **PR's welcome!**
 
 ## Getting started
 
-DynamoDB's done a fantastic job of hiding (in a good way) a lot of the complexity (in the Rich Hickey sense) that comes with managing large amounts of data. Despite the power at your disposal, the actual API you'll be using is pretty darn simple (especially via Clojure, as usual).
+> See also [@ricardojmendez/ddb-tutorial] for a full tutorial!
 
-### Dependencies
-
-Add the necessary dependency to your [Leiningen](http://leiningen.org/) `project.clj` and `require` the library in your ns:
+Add the necessary dependency to your project:
 
 ```clojure
-[com.taoensso/faraday "1.0.1"] ; project.clj
-(ns my-app (:require [taoensso.faraday :as far])) ; ns
+[com.taoensso/faraday "1.9.0"]
+```
+
+And setup your namespace imports:
+
+```clojure
+(ns my-ns (:require [taoensso.faraday :as far]))
 ```
 
 ### Preparing a database
 
-First thing is to make sure you've got an **[AWS DynamoDB account](http://aws.amazon.com/dynamodb/)** (there's a **free tier** with 100MB of storage and limited read+write throughput). Next you'll need credentials for an IAM user with read+write access to your DynamoDB tables (see the **IAM section of your AWS Management Console**). Ready?
+#### Option 1 - Run a local DDB instance
+
+First thing is to make sure you've got a DynamoDB Local instance up and running. Follow the [instructions from AWS][] (don't worry, you basically just download a JAR file and run it) or use `brew install dynamodb-local` if you're on OSX and is using Homebrew.
+
+Once DynamoDB Local is up and running in your terminal, you should see something like:
+
+```sh
+$ dynamodb-local
+2014-04-30 16:08:51.050:INFO:oejs.Server:jetty-8.1.12.v20130726
+2014-04-30 16:08:51.104:INFO:oejs.AbstractConnector:Started SelectChannelConnector@0.0.0.0:8000
+```
+
+Then proceed to connecting with your local instance in the next section.
+
+#### Option 2 - Spin up a cloud DDB instance on AWS
+
+Make sure you've got an [AWS DynamoDB account] - note that there's a **free tier** with limited storage and read+write throughput. Next you'll need credentials for an IAM user with read+write access to your DynamoDB tables (see the **IAM section of your AWS Management Console**).
+
+Ready?
 
 ### Connecting
 
 ```clojure
-(def creds {:access-key "<AWS_DYNAMODB_ACCESS_KEY>"
-            :secret-key "<AWS_DYNAMODB_SECRET_KEY>"}) ; Insert your IAM creds here
+(def client-opts
+  {;;; For DDB Local just use some random strings here, otherwise include your
+   ;;; production IAM keys:
+   :access-key "<AWS_DYNAMODB_ACCESS_KEY>"
+   :secret-key "<AWS_DYNAMODB_SECRET_KEY>"
 
-(far/list-tables creds)
+   ;;; You may optionally override the default endpoint if you'd like to use DDB
+   ;;; Local or a different AWS Region (Ref. http://goo.gl/YmV80o), etc.:
+   ;; :endpoint "http://localhost:8000"                   ; For DDB Local
+   ;; :endpoint "http://dynamodb.eu-west-1.amazonaws.com" ; For EU West 1 AWS region
+  })
+
+(far/list-tables client-opts)
 => [] ; No tables yet :-(
 ```
 
-Well that was easy. How about we create a table? (This is actually one of the most complicated parts of working with DynamoDB since it requires understanding how DynamoDB [provisions capacity](http://aws.amazon.com/dynamodb/pricing/) and how its [primary keys](http://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DataModel.html#DataModelPrimaryKey) work. Anyway, we can safely ignore the specifics for now).
+Now let's create a table? This is actually one of the more complicated parts of working with DynamoDB since it requires understanding how DynamoDB [provisions capacity] and how its idiosyncratic [primary keys](http://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DataModel.html#DataModelPrimaryKey) work. We can safely ignore the specifics for now.
 
 ```clojure
-(far/create-table creds :my-table
+(far/create-table client-opts :my-table
   [:id :n]  ; Primary key named "id", (:n => number type)
   {:throughput {:read 1 :write 1} ; Read & write capacity (units/sec)
    :block? true ; Block thread during table creation
@@ -55,14 +112,14 @@ Well that was easy. How about we create a table? (This is actually one of the mo
 
 ;; Wait a minute for the table to be created... got a sandwich handy?
 
-(far/list-tables creds)
+(far/list-tables client-opts)
 => [:my-table] ; There's our new table!
 ```
 
 Let's write something to `:my-table` and fetch it back:
 
 ```clojure
-(far/put-item creds
+(far/put-item client-opts
     :my-table
     {:id 0 ; Remember that this is our primary (indexed) key
      :name "Steve" :age 22 :data (far/freeze {:vector    [1 2 3]
@@ -71,17 +128,15 @@ Let's write something to `:my-table` and fetch it back:
                                               ;; ... Any Clojure data goodness
                                               })})
 
-(far/get-item creds :my-table {:id 0})
+(far/get-item client-opts :my-table {:id 0})
 => {:id 0 :name "Steve" :age 22 :data {:vector [1 2 3] ...}}
 ```
 
-It really couldn't be simpler!
+### Remaining API
 
-### API
+DynamoDB gives you tons of power including **secondary indexes**, **conditional writes**, **batch operations**, **atomic counters**, **tuneable read consistency** and more.
 
-The above example is just scratching the surface obviously. DynamoDB gives you tons of power including **secondary indexes**, **conditional writes**, **batch operations**, **atomic counters**, **tuneable read consistency** and more.
-
-Most of this stuff is controlled through optional arguments and is pretty easy to pick up by **[seeing the appropriate docstrings](http://ptaoussanis.github.io/faraday/)**:
+Most of this stuff is controlled through optional arguments and is pretty easy to pick up by seeing the relevant [API] docs:
 
 **Tables**: `list-tables`, `describe-table`, `create-table`, `ensure-table`, `update-table`, `delete-table`.
 
@@ -91,28 +146,48 @@ Most of this stuff is controlled through optional arguments and is pretty easy t
 
 **Querying**: `query`, `scan`, `scan-parallel`.
 
-You can also check out the [official AWS DynamoDB documentation](http://aws.amazon.com/documentation/dynamodb/) though there's a lot of irrelevant Java-land complexity you won't need to deal with with Farady. The most useful doc is probably on the [DynamoDB data model](http://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DataModel.html).
+You can also check out the [official AWS DynamoDB documentation] though there's a lot of irrelevant Java-land complexity you won't need to deal with with Faraday. The most useful single doc is probably on the [DynamoDB data model].
 
-## Performance (TODO)
+## Contacting me / contributions
 
-Faraday adds negligable overhead to the [official Java AWS SDK](http://aws.amazon.com/sdkforjava/):
+Please use the project's [GitHub issues page] for all questions, ideas, etc. **Pull requests welcome**. See the project's [GitHub contributors page] for a list of contributors.
 
-![Performance comparison chart](https://github.com/ptaoussanis/faraday/raw/master/benchmarks/chart.png)
+Otherwise, you can reach me at [Taoensso.com]. Happy hacking!
 
-[Detailed benchmark information](https://docs.google.com/spreadsheet/ccc?key=0AuSXb68FH4uhdE5kTTlocGZKSXppWG9sRzA5Y2pMVkE) is available on Google Docs.
-
-## This project supports the CDS and ![ClojureWerkz](https://raw.github.com/clojurewerkz/clojurewerkz.org/master/assets/images/logos/clojurewerkz_long_h_50.png) goals
-
-  * [CDS](http://clojure-doc.org/), the **Clojure Documentation Site**, is a **contributer-friendly** community project aimed at producing top-notch, **beginner-friendly** Clojure tutorials and documentation. Awesome resource.
-
-  * [ClojureWerkz](http://clojurewerkz.org/) is a growing collection of open-source, **batteries-included Clojure libraries** that emphasise modern targets, great documentation, and thorough testing. They've got a ton of great stuff, check 'em out!
-
-## Contact & contributing
-
-Please use the [project's GitHub issues page](https://github.com/ptaoussanis/faraday/issues) for project questions/comments/suggestions/whatever **(pull requests welcome!)**. Am very open to ideas if you have any!
-
-Otherwise reach me (Peter Taoussanis) at [taoensso.com](https://www.taoensso.com) or on Twitter ([@ptaoussanis](https://twitter.com/#!/ptaoussanis)). Cheers!
+\- [Peter Taoussanis]
 
 ## License
 
-Copyright &copy; 2013 Peter Taoussanis. Distributed under the [Eclipse Public License](http://www.eclipse.org/legal/epl-v10.html), the same as Clojure.
+Distributed under the [EPL v1.0] \(same as Clojure).  
+Copyright &copy; 2013-2016 [Peter Taoussanis].
+
+<!--- Standard links -->
+[Taoensso.com]: https://www.taoensso.com
+[Peter Taoussanis]: https://www.taoensso.com
+[@ptaoussanis]: https://www.taoensso.com
+[More by @ptaoussanis]: https://www.taoensso.com
+[Break Version]: https://github.com/ptaoussanis/encore/blob/master/BREAK-VERSIONING.md
+[support my continued open-source Clojure/Script work]: http://taoensso.com/clojure/backers
+
+<!--- Standard links (repo specific) -->
+[CHANGELOG]: https://github.com/ptaoussanis/faraday/releases
+[API]: http://ptaoussanis.github.io/faraday/
+[GitHub issues page]: https://github.com/ptaoussanis/faraday/issues
+[GitHub contributors page]: https://github.com/ptaoussanis/faraday/graphs/contributors
+[EPL v1.0]: https://raw.githubusercontent.com/ptaoussanis/faraday/master/LICENSE
+[Hero]: https://raw.githubusercontent.com/ptaoussanis/faraday/master/hero.png "Title"
+
+<!--- Unique links -->
+
+[DynamoDB]: http://aws.amazon.com/dynamodb/
+[Rotary client]: https://github.com/weavejester/rotary
+[contributors]: https://github.com/ptaoussanis/faraday/graphs/contributors
+[Nippy]: https://github.com/ptaoussanis/nippy
+[@mixradio/faraday-atom]: https://github.com/mixradio/faraday-atom
+[@ricardojmendez/ddb-tutorial]: http://numergent.com/2016-01/Clojure-and-DynamoDB-with-Faraday-part-1.html
+[instructions from AWS]: http://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Tools.DynamoDBLocal.html
+[AWS DynamoDB account]: http://aws.amazon.com/dynamodb/
+[provisions capacity]: http://aws.amazon.com/dynamodb/pricing/
+[primary keys]: http://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DataModel.html#DataModelPrimaryKey
+[official AWS DynamoDB documentation]: http://aws.amazon.com/documentation/dynamodb/
+[DynamoDB data model]: http://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DataModel.html
